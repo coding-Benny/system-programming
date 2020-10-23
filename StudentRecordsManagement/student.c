@@ -5,6 +5,11 @@
 #include<conio.h>
 #include<stdio.h>
 #include<stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <io.h>
+
 
 //***************************************************************
 //                   STURUCTURE USED IN PROJECT
@@ -31,8 +36,13 @@ FILE* fptr;
 
 void write_student()
 {
-	errno_t err;
-	err = fopen_s(&fptr, "student.dat", "ab");  //return 0 if success
+	int fd;
+	if ((fd = open("student.dat", O_WRONLY | O_APPEND | O_CREAT, 0777)) == -1) {
+		perror("Can't open file.\n");
+		exit(0);
+	}
+	//fd = open("student.dat", O_WRONLY | O_APPEND | O_CREAT);
+
 	printf("\nPlease Enter The New Details of student \n");
 	printf("\nEnter The roll number of student ");
 	scanf_s("%d", &st.rollno);
@@ -53,8 +63,8 @@ void write_student()
 		st.grade = 'C';
 	else
 		st.grade = 'F';
-	fwrite(&st, sizeof(st), 1, fptr);
-	fclose(fptr);
+	write(fd, (char*)&st, sizeof(st));
+	close(fd);
 	printf("\n\nStudent Record Has Been Created.  Press any key.... ");
 	_getch();
 }
@@ -67,23 +77,24 @@ void write_student()
 
 void display_all()
 {
-	errno_t err; int i;
+	int fd; int i;
 	system("cls");
 	printf("\n\n\n\t\tDISPLAY ALL RECORD !!!\n\n");
 	printf("====================================================\n");
 	printf("R.No.  Name       P   C   Ave   Grade\n");
 	printf("====================================================\n");
 
-	err = fopen_s(&fptr, "student.dat", "rb");
-	if (fptr == NULL)
+	fd = open("student.dat", O_RDONLY);
+	if (fd == -1)
 		return;
 
-	while ((i = fread(&st, sizeof(st), 1, fptr)) > 0)
+	//lseek(fd, 0, SEEK_SET);
+	while ((i = read(fd, &st, sizeof(st)) > 0))
 	{
 		printf("%-6d %-10s %-3d %-3d %-3.2f  %-1c\n",
 			st.rollno, st.name, st.p_marks, st.c_marks, st.per, st.grade);
 	}
-	fclose(fptr);
+	close(fd);
 	_getch();
 }
 
@@ -96,11 +107,11 @@ void display_all()
 void display_sp(int n)
 {
 	int flag = 0;
-	errno_t err;
-	err = fopen_s(&fptr, "student.dat", "rb");
-	if (fptr == NULL)
+	int fd;
+	fd = open("student.dat", O_RDONLY);
+	if (fd == -1)
 		return;
-	while ((fread(&st, sizeof(st), 1, fptr)) > 0)
+	while ((read(fd, &st, sizeof(st))) > 0)
 	{
 		if (st.rollno == n)
 		{
@@ -114,7 +125,7 @@ void display_sp(int n)
 			flag = 1;
 		}
 	}
-	fclose(fptr);
+	close(fd);
 	if (flag == 0)
 		printf("\n\nrecord not exist");
 	_getch();
@@ -129,15 +140,15 @@ void display_sp(int n)
 void modify_student()
 {
 	int no, found = 0, i;
-	errno_t err;
+	int fd;
 	system("cls");
 	printf("\n\n\tTo Modify ");
 	printf("\n\n\tPlease Enter The roll number of student");
 	scanf_s("%d", &no);
-	err = fopen_s(&fptr, "student.dat", "rb+");
-	if (fptr == NULL)
+	fd = open("student.dat", O_RDWR);
+	if (fd == -1)
 		return;
-	while ((i = fread(&st, sizeof(st), 1, fptr)) > 0 && found == 0)
+	while ((i = read(fd, &st, sizeof(st))) > 0 && found == 0)
 	{
 		if (st.rollno == no)
 		{
@@ -169,9 +180,9 @@ void modify_student()
 				st.grade = 'F';
 
 
-			fseek(fptr, -(int)sizeof(st), 1);  // SEEK_CUR
+			lseek(fd, -(long)sizeof(st), 1);  // SEEK_CUR
 
-			fwrite(&st, sizeof(st), 1, fptr);
+			write(fd, &st, sizeof(st));
 
 
 			printf("\n\n\t Record Updated");
@@ -181,7 +192,7 @@ void modify_student()
 		}
 	}
 
-	fclose(fptr);
+	close(fd);
 	if (found == 0)
 		printf("\n\n Record Not Found ");
 	_getch();
@@ -195,29 +206,28 @@ void modify_student()
 
 void delete_student()
 {
-	int no;
+	int no, fd1, fd2;
 	FILE* fptr2;
-	errno_t err;
 	system("cls");
 	printf("\n\n\n\tDelete Record");
 	printf("\n\nPlease Enter The roll number of student You Want To Delete");
 	scanf_s("%d", &no);
 
-	err = fopen_s(&fptr, "student.dat", "rb");
-	if (fptr == NULL)
+	fd1 = open("student.dat", O_RDWR);
+	if (fd1 == -1)
 		return;
-	err = fopen_s(&fptr2, "Temp.dat", "wb");
-	rewind(fptr);  // move file pointer to 0
+	fd2 = open("Temp.dat", O_RDWR | O_CREAT, 0777);
+	lseek(fd1, 0, SEEK_SET);  // move file pointer to 0
 
-	while ((fread(&st, sizeof(st), 1, fptr)) > 0)
+	while ((read(fd1, (char *)&st, sizeof(st))) > 0)
 	{
 		if (st.rollno != no)
 		{
-			fwrite(&st, sizeof(st), 1, fptr2);
+			write(fd2, (char *)&st, sizeof(st));
 		}
 	}
-	fclose(fptr2);
-	fclose(fptr);
+	close(fd2);
+	close(fd1);
 	remove("student.dat");
 	rename("Temp.dat", "student.dat");
 	printf("\n\n\tRecord Deleted ..");
