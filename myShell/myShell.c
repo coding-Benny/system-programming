@@ -20,6 +20,9 @@
 #define BUF_SIZE 512
 
 char command[BUF_SIZE][BUF_SIZE];
+char user_name[BUF_SIZE];
+char host_name[BUF_SIZE];
+char current_path[BUF_SIZE];
 
 int split_argv(char* argv);
 void exit_shell();
@@ -36,7 +39,14 @@ int main() {
 	int filedes[2];
 	char *command1, *command2;
 	
-	while (1) {		
+	char *current_dir = getcwd(current_path, BUF_SIZE);
+	struct passwd* pwd = getpwuid(getuid());
+	strcpy(user_name, pwd->pw_name);
+	gethostname(host_name, BUF_SIZE);
+	
+	while (1) {
+		printf("\e[32;1m%s@%s\e[0m:\e[34;1m%s\e[0m$ ", user_name, host_name, current_dir);
+		
 		fgets(argv, sizeof(argv), stdin);
 		argv[strlen(argv) - 1] = '\0';
 
@@ -64,7 +74,7 @@ int main() {
 				close(fd);
 			}
 			else if (strchr(argv, '<') != NULL && strchr(argv, '>') == NULL) {	// redirect input
-				
+				printf("redirect input\n");
 			}
 			else {
 				if (strchr(argv, '|') != NULL) {	// pipe
@@ -94,7 +104,21 @@ int main() {
 					}
 				}
 				else {
-					// execlp(command, command, ...);
+					switch(argc) {
+						case 1:
+							if (execlp(command[0], command[0], NULL) == -1)
+								fprintf(stderr, "error: %s\n", strerror(errno));
+							break;
+						case 2:
+							if (execlp(command[0], command[0], command[1], NULL) == -1)
+								fprintf(stderr, "error: %s\n", strerror(errno));
+							break;
+						case 3:
+							if (execlp(command[0], command[0], command[1], command[2], NULL) == -1)
+								fprintf(stderr, "error: %s\n", strerror(errno));
+							break;
+					}
+					perror("execlp");
 				}
 			}
 		}
