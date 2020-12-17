@@ -165,7 +165,7 @@ int split_argv(char* argv) {
 		}
 	}
 	if (j != 0) {
-		command[i][j] = '\0';
+		command[argc][j] = '\0';
 		argc++;
 	}
 	
