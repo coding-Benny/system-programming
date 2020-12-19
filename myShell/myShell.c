@@ -22,10 +22,15 @@
 #define STDIN_FILENO 0
 #define STDOUT_FILENO 1
 #define STDERR_FILENO 2
+#define READ 0
+#define WRITE 1
 
-char command[BUF_SIZE][BUF_SIZE];
-int split_argv(char* argv);
-void exit_process();
+int fg = 0, bg = 0, num_of_bg_process = 0, stack = 0;
+int bg_process_id[BUF_SIZE] = { 0 };
+char* bg_process_name[BUF_SIZE];
+
+int split_argv(char* command[], char* argv);
+void chldsignal();
 
 //***************************************************************
 //        THE MAIN FUNCTION OF PROGRAM
@@ -33,203 +38,158 @@ void exit_process();
 
 int main() {
 	int argc = -1, amper = -1;
-	int fd, pid, status, ch, redi_idx;
+	int fd, pid, status, redi_idx, pipe_idx;
 	int filedes[2];
-	char *file_name, *command1, *command2;
-	char argv[BUF_SIZE];
-	char user_name[BUF_SIZE], host_name[BUF_SIZE], current_path[BUF_SIZE];
+	char *file_name, *command[BUF_SIZE], *command1[BUF_SIZE], *command2[BUF_SIZE]; 
+	char argv[BUF_SIZE], tmp[BUF_SIZE], temp_argv[BUF_SIZE], user_name[BUF_SIZE], host_name[BUF_SIZE], current_path[BUF_SIZE];
 	char *current_dir = getcwd(current_path, BUF_SIZE);
 	struct passwd* pwd = getpwuid(getuid());
 	strcpy(user_name, pwd->pw_name);
 	gethostname(host_name, BUF_SIZE);
+
+	signal(SIGCHLD, chldsignal);
 	
 	while (1) {		
-		
 		printf("\e[32;1m%s@%s\e[0m:\e[34;1m%s\e[0m$ ", user_name, host_name, current_dir);
 
-		fgets(argv, BUF_SIZE, stdin);
+		fgets(argv, sizeof(argv), stdin);
 		
 		int argv_len = strlen(argv);
-		if (argv_len != BUF_SIZE)
-			argv[argv_len - 1] = '\0';
+		argv[argv_len - 1] = '\0';
+			
+		strcpy(temp_argv, argv);
+		
+		if (bg == 0 && strlen(argv))
+			strncpy(tmp, argv, strlen(argv) - 2);
 
-		argc = split_argv(argv);
+		argc = split_argv(command, temp_argv);
 		
-		// print
-		printf("argc=%d, argv=%s\n", argc, argv);
-		for(int i=0;i<3;i++)
-			printf("%s\t", command[i]);
-		printf("\n");
-		
-		if (strcmp(command[0], "exit") == 0 || strcmp(command[0], "logout") == 0) {
-			printf("exit shell prog\n");
-			exit_process();
-		}
+		if (argc > 0) {
+			if (strcmp(command[0], "exit") == 0 || strcmp(command[0], "logout") == 0)
+				exit(0);
 
-		if (strcmp(command[argc - 1], "&") == 0) {	// background process
-			amper = 1;
-		}
-		else {	// foreground process
-			amper = 0;
-		}
-		
-		pid = fork();
-		
-		if (pid == 0) {	// child process
-			if (strchr(argv, '>') != NULL && strchr(argv, '<') == NULL) {	// redirect output
-				for (int i=0; i < argc; i++) {
-					if (strcmp(command[i], ">") == 0) {
-						redi_idx = i;
-						file_name = command[redi_idx + 1];
-						break;
-					}
-				}
-				if ((fd = creat(file_name, 0600)) == -1)
-					perror("can't create file");
-				close(STDOUT_FILENO);
-				dup(fd);	// process's stdout is file
-				switch (redi_idx) {
-					case 1:
-						if (execlp(command[0], command[0], NULL) == -1) {
-								perror("execlp");
-								exit_process();
-							}
-						break;
-					case 2:
-						if (execlp(command[0], command[0], command[1], NULL) == -1) {
-							perror("execlp");
-							exit_process();
-						}
-						break;
-				}
-				close(fd);
+			if (strcmp(command[argc - 1], "&") == 0) {	// background process
+				amper = 1;
+				command[argc - 1] = '\0';
+				argc--;
 			}
-			else if (strchr(argv, '<') != NULL && strchr(argv, '>') == NULL) {	// redirect input
-				for (int i=0; i < argc; i++) {
-					if (strcmp(command[i], "<") == 0) {
-						redi_idx = i;
-						file_name = command[redi_idx + 1];
-						break;
-					}
-				}
-				if ((fd = open(file_name, O_RDONLY)) == -1)
-					perror("can't read file");
-				close(STDIN_FILENO);
-				dup(fd);	// process's stdin is file
-				switch (redi_idx) {
-					case 1:
-						if (execlp(command[0], command[0], NULL) == -1) {
-								perror("execlp");
-								exit_process();
-							}
-						break;
-					case 2:
-						if (execlp(command[0], command[0], command[1], NULL) == -1) {
-							perror("execlp");
-							exit_process();
-						}
-						break;
-				}
-				close(fd);
-				printf("redirect input\n");
+			else {	// foreground process
+				amper = 0;
 			}
-			else {
-				if (strchr(argv, '|') != NULL) {	// pipe
-					command1 = strtok(argv, " | ");
-					command2 = strtok(NULL, " | ");
-					pipe(filedes);
-					
-					if (fork() == 0) {	// grand child process
-						close(filedes[0]);
-						dup2(filedes[1], 1);
-						close(filedes[1]);
-
-						if (execlp(command1, command1, NULL) == -1) {
-							perror("pipe");
-							exit_process();
+			
+			pid = fork();
+			
+			if (pid == 0) {	// child process
+				if (strchr(argv, '>') != NULL && strchr(argv, '<') == NULL) {	// redirect output
+					for (int i = 0; i < argc; i++) {
+						if (strcmp(command[i], ">") == 0) {
+							redi_idx = i;
+							file_name = command[redi_idx + 1];
+							break;
 						}
 					}
-					else {	// child process
-						close(filedes[1]);
-						dup2(filedes[0], 0);
-						close(filedes[0]);
-
-						if (execlp(command2, command2, NULL) == -1) {
-							perror("pipe");
-							exit_process();
+					if ((fd = creat(file_name, 0600)) == -1) {
+						perror("can't create file");
+						exit(1);
+					}
+					close(STDOUT_FILENO);
+					dup(fd);	// process's stdout is file
+					close(fd);
+					for (int i = 0; i < redi_idx; i++)
+						command1[i] = command[i];
+					execvp(command1[0], command1);
+					perror("can't redirect output");
+					exit(1);
+				}
+				else if (strchr(argv, '<') != NULL && strchr(argv, '>') == NULL) {	// redirect input
+					for (int i = 0; i < argc; i++) {
+						if (strcmp(command[i], "<") == 0) {
+							redi_idx = i;
+							file_name = command[redi_idx + 1];
+							break;
 						}
 					}
+					if ((fd = open(file_name, O_RDONLY)) == -1) {
+						perror("can't read file");
+						exit(1);
+					}
+					close(STDIN_FILENO);
+					dup(fd);	// process's stdin is file
+					close(fd);
+					for (int i = 0; i < redi_idx; i++)
+						command1[i] = command[i];
+					execvp(command1[0], command1);
+					perror("can't redirect input");
+					exit(1);
 				}
 				else {
-					switch (argc) {
-						case 1:
-							if (execlp(command[0], command[0], NULL) == -1) {
-								perror("execlp");
-								exit_process();
+					if (strchr(argv, '|') != NULL) {	// pipe
+						for(int i = 0; i < argc; i++) {
+							if (strcmp(command[i], "|") == 0) {
+								pipe_idx = i;
 							}
-							break;
-						case 2:
-							if (execlp(command[0], command[0], command[1], NULL) == -1) {
-								perror("execlp");
-								exit_process();
-							}
-							break;
-						case 3:
-							if (execlp(command[0], command[0], command[1], command[2], NULL) == -1) {
-								perror("execlp");
-								exit_process();
-							}
-							break;
+						}
+						for (int i = 0; i < pipe_idx; i++)
+							command1[i] = command[i];
+						for(int i=0; i < argc - (pipe_idx + 1); i++)
+							command2[i] = command[pipe_idx + 1];
+
+						pipe(filedes);
+						
+						if (fork() == 0) {	// grand child process
+							close(filedes[READ]);
+							dup2(filedes[WRITE], STDOUT_FILENO);
+							close(filedes[WRITE]);
+							execvp(command1[0], command1);
+							perror("pipe");
+							exit(1);
+						}
+						else {	// child process
+							close(filedes[WRITE]);
+							dup2(filedes[READ], STDIN_FILENO);
+							close(filedes[READ]);
+							execvp(command2[0], command2);
+							perror("pipe");
+							exit(1);
+						}
+					}
+					else {
+							execvp(command[0], &command[0]);
+							perror("execvp");
+							exit(1);
 					}
 				}
 			}
-		}
-		else {	// parent process
-			if (amper == 0) {
-				wait(&status);
+			else {	// parent process
+				if (amper == 0) {
+					wait(&status);
+				}
 			}
-		}	
+		}
+		
+		if (argc == 0) continue;
 	}
-}
-
-//***************************************************************
-//        EXIT SHELL PROGRAM
-//***************************************************************
-
-void exit_process() {
-	pid_t pid = getpid();
-	if (kill(pid, SIGTERM) == -1)
-		exit(-1);
-	else
-		exit(0);
 }
 
 //***************************************************************
 //        SPLIT COMMAND ARGUMENTS VECTOR
 //***************************************************************
 
-int split_argv(char* argv) {
-	int i, j;
+int split_argv(char* command[], char* argv) {
 	int argc = 0;
-	int argv_len = strlen(argv);
+	char* args;
 
-	for(i = 0, j = 0; i < argv_len; i++) {
-		if (argv[i] != ' ') {
-			command[argc][j] = argv[i];
-			j++;
-		}
-		else {
-			if (j != 0) {
-				command[argc][j] = '\0';
-				j = 0;
-				argc++;
-			}
-		}
-	}
-	if (j != 0) {
-		command[argc][j] = '\0';
+	if (argv == NULL)
+		return argc;
+		
+	args = strtok(argv, " \t\n");
+	
+	while (args != NULL) {
+		command[argc] = args;
+		args = strtok(NULL, " \t\n");
 		argc++;
 	}
+	command[argc] = '\0';
 	
 	return argc;
 }
