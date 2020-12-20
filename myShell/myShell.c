@@ -67,6 +67,14 @@ int main() {
 		if (argc > 0) {
 			if (strcmp(command[0], "exit") == 0 || strcmp(command[0], "logout") == 0)
 				exit(0);
+			
+			if (strcmp(command[0], "myjobs") == 0) {
+				for(int i=0; i<num_of_bg_process; i++) {
+					char stack_sign = (i == num_of_bg_process - 1) ? '+' : '-';
+					printf("[%d]%c  Running\t\t%d\t%s\n", i+1, stack_sign, bg_process_id[i], bg_process_name[i]);
+				}
+				continue;
+			}
 
 			if (strcmp(command[argc - 1], "&") == 0) {	// background process
 				amper = 1;
