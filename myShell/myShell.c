@@ -131,7 +131,7 @@ int main() {
 						}
 						for (int i = 0; i < pipe_idx; i++)
 							command1[i] = command[i];
-						for(int i=0; i < argc - (pipe_idx + 1); i++)
+						for(int i = 0; i < argc - (pipe_idx + 1); i++)
 							command2[i] = command[pipe_idx + 1];
 
 						pipe(filedes);
@@ -162,9 +162,25 @@ int main() {
 			}
 			else {	// parent process
 				if (amper == 0) {
-					wait(&status);
+					fg = 1;
+					while (fg == 1)
+						pause();
+				}
+				else {
+					bg_process_name[num_of_bg_process] = malloc(sizeof(char) * BUF_SIZE);
+					strcpy(bg_process_name[num_of_bg_process], command[0]);
+					bg_process_id[num_of_bg_process] = pid;
+					stack++;
+					printf("[%d] %d\n", stack, pid);
+					num_of_bg_process++;
 				}
 			}
+		}
+		
+		if (bg == 1) {
+			printf("[%d]+  Done\t\t\t%s &\n", stack, tmp);
+			stack--;
+			bg = 0;
 		}
 		
 		if (argc == 0) continue;
@@ -192,4 +208,32 @@ int split_argv(char* command[], char* argv) {
 	command[argc] = '\0';
 	
 	return argc;
+}
+
+//***************************************************************
+//        HANDLER
+//***************************************************************
+
+void chldsignal() {
+	int pid, status;
+	pid = waitpid(-1, &status, 0);
+
+	for (int i = 0; i < num_of_bg_process; i++) {
+		if (bg_process_id[i] == pid) {
+			int cur = i;
+			bg = 1;
+			if (cur > 0) {
+				for(i = cur; i < num_of_bg_process - 1; i++) {
+					bg_process_id[i] = bg_process_id[i+1];
+					bg_process_name[i] = bg_process_name[i+1];
+				}
+			}
+			bg_process_id[i] = 0;
+			bg_process_name[i] = NULL;
+			free(bg_process_name[num_of_bg_process-1]);	
+			num_of_bg_process--;
+			return;
+		}
+	}
+	fg = 0;
 }
