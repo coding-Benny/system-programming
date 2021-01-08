@@ -23,3 +23,30 @@
     <img src="https://github.com/coding-Benny/system-programming/blob/main/images/StudentRecordsManagement/exit.png" width="400" height="300">
   </ol>
 </details>
+
+## 💲 myls
+ls 명령을 수행하여 동일한 결과(내용)가 나오는 myls 프로그램을 작성하기(출력 형식 무관)<br>
+- $ `myls [option] [file]`<br>
+  option: `-l` `-a` `-al` <br>
+  file : file or directory name<br>
+- 예시<br>
+  $ `myls`<br>
+  $ `myls -l`<br>
+  $ `myls -al  /etc/passwd`<br>
+  $ `myls  a.out`<br>
+  $ `myls -a  ..`<br>
+<details>
+  <summary>실행 결과</summary>
+  <ol>
+    <li><code>myls</code></li>
+    <img src="https://github.com/coding-Benny/system-programming/blob/main/images/myls/ls.png" width="400" height="200">
+    <li><code>myls -l</code></li>
+    <img src="https://github.com/coding-Benny/system-programming/blob/main/images/myls/ls-l.png" width="400" height="300">
+    <li><code>myls -al /etc/passwd</code></li>
+    <img src="https://github.com/coding-Benny/system-programming/blob/main/images/myls/ls-al-file.png" width="400" height="80">
+    <li><code>myls a.out</code></li>
+    <img src="https://github.com/coding-Benny/system-programming/blob/main/images/myls/ls-file.png" width="400" height="80">
+    <li><code>myls -a ..</code></li>
+    <img src="https://github.com/coding-Benny/system-programming/blob/main/images/myls/ls-a-dir.png" width="400" height="250">
+  </ol>
+</details>
