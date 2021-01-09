@@ -50,3 +50,22 @@ ls 명령을 수행하여 동일한 결과(내용)가 나오는 myls 프로그�
     <img src="https://github.com/coding-Benny/system-programming/blob/main/images/myls/ls-a-dir.png" width="400" height="250">
   </ol>
 </details>
+
+## 🐚 myShell
+shell에서 입력한 명령과 동일하게 동작하는 간단한 쉘 인터프리터 작성하기
+- 기능
+  - 명령어 실행(Command execution): `[prompt] command`
+  - 후면 실행(Background execution): `[prompt] command &`
+  - 종료: `[prompt] exit` 또는 `logout`
+  - 파이프(한 개만 처리): `[prompt] command | command2`
+  - Redirection(입출력 모두): `[prompt] cmd < input > output`
+  - (추가 기능) Background process 관리: `[prompt] myjobs`
+<details>
+  <summary>실행 결과(좌측: myShell.c / 우측: 기존 shell)</summary>
+  <ul>
+    <li>명령어 실행, redirect, background process, pipe</li>
+    <img src="https://github.com/coding-Benny/system-programming/blob/main/images/myShell/command.png" width="800" height="500">
+    <li>Background process, myjobs, exit</li>
+    <img src="https://github.com/coding-Benny/system-programming/blob/main/images/myShell/background.png" width="800" height="160">
+  </ul>
+</details>
